@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin – Room {{ code }}</title>
+  <style>
+    :root{
+      --bg:#0f0f0f; --panel:#1a1a1a; --panel-2:#212121;
+      --line:#2a2a2a; --text:#f2f2f2; --muted:#9a9a9a;
+      --green:#1DB954; --green-dim:#178a40; --danger:#e0245e;
+      --purple:#9b59b6;
+      --radius:14px;
+    }
+    *{box-sizing:border-box;}
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text); margin:0;
+      padding: 24px 20px 120px;
+      max-width: 1280px; margin-inline:auto;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1 { color: var(--green); margin:0 0 4px; font-size:1.7em; letter-spacing:-.02em; }
+    h2 { font-size:1.1em; margin:0 0 12px; color:#e8e8e8; letter-spacing:-.01em; }
+    .sub { color: var(--muted); margin:0 0 18px; font-size:.92em; }
+    .sub b { color: var(--green); font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing:1px; }
+
+    .toolbar {
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+      margin-bottom: 16px;
+    }
+    .toolbar .spacer { flex:1; }
+    button, .toolbar a button { font-family:inherit; }
+    button {
+      padding: 10px 16px; border:none; border-radius:10px;
+      cursor:pointer; font-weight:600; font-size:.92em;
+      transition: background .15s ease, transform .08s ease, opacity .15s ease;
+    }
+    button:active { transform: scale(.97); }
+    button:disabled { opacity:.35; cursor:not-allowed; }
+    .primary { background: var(--green); color:#000; }
+    .primary:hover { background:#24c95f; }
+    .danger  { background: var(--danger); color:#fff; }
+    .danger:hover { background:#c51e50; }
+    .ghost   { background:#2a2a2a; color:#eee; }
+    .ghost:hover { background:#333; }
+
+    .status-bar { display:flex; align-items:center; gap:10px; margin-bottom:18px; }
+    .pill {
+      display:inline-flex; align-items:center; gap:8px;
+      padding: 7px 14px; border-radius:999px;
+      background: var(--panel); border:1px solid var(--line);
+      font-size:.85em; color:var(--muted); font-weight:600;
+    }
+    .pill .dot {
+      width:9px; height:9px; border-radius:50%;
+      background:#555; transition: background .25s ease, box-shadow .25s ease;
+    }
+    .pill.ready .dot { background: var(--green); box-shadow: 0 0 10px var(--green); }
+    .pill.ready { color: var(--green); border-color: rgba(29,185,84,.35); }
+    .pill.error .dot { background: var(--danger); box-shadow: 0 0 10px var(--danger); }
+    .pill.error { color: #ff7a9c; border-color: rgba(224,36,94,.35); }
+
+    .layout {
+      display:grid; grid-template-columns: 1.15fr .85fr; gap:18px;
+      align-items:start;
+    }
+    @media (max-width: 860px){
+      .layout { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--panel); padding:20px;
+      border-radius: var(--radius);
+      border:1px solid var(--line);
+    }
+    .panel .hint { color: var(--muted); font-size:.82em; margin:-4px 0 14px; }
+
+    #queue { display:flex; flex-direction:column; gap:8px; }
+    .song {
+      display:flex; align-items:center; gap:10px;
+      padding: 10px 12px; background: var(--panel-2);
+      border-radius: 10px; border:1px solid transparent;
+      transition: border-color .15s ease;
+    }
+    .song:hover { border-color:#333; }
+    .song.playing { border-color: rgba(29,185,84,.5); background: rgba(29,185,84,.08); }
+    .song .rank {
+      min-width: 26px; text-align:center; color:var(--muted);
+      font-weight:700; font-size:.85em; font-variant-numeric:tabular-nums;
+    }
+    .song.playing .rank { color: var(--green); }
+    .song-info { flex:1; min-width:0; }
+    .song-name {
+      font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      font-size:.95em;
+    }
+    .song-meta { color:var(--muted); font-size:.8em; margin-top:2px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .score {
+      color: var(--green); font-weight:700; min-width:36px; text-align:right;
+      font-variant-numeric: tabular-nums; font-size:.95em;
+    }
+    .row-btns { display:flex; gap:4px; }
+    .row-btns button {
+      padding: 5px 9px; font-size:.85em; border-radius:8px; min-width:30px;
+    }
+    .empty {
+      color: var(--muted); text-align:center; padding: 30px 10px;
+      font-size:.92em; font-style:italic;
+    }
+
+    #now-playing {
+      color:#eaeaea; font-weight:600; font-size:1.05em; margin-bottom:14px;
+      min-height: 1.3em;
+    }
+    #now-playing .artist { display:block; color: var(--muted); font-weight:400;
+      font-size:.85em; margin-top:4px; }
+
+    #controls { display:none; }
+    #controls.on { display:block; }
+
+    .seek-row {
+      display:flex; align-items:center; gap:12px; margin-bottom:16px;
+    }
+    .time {
+      color:var(--muted); font-variant-numeric:tabular-nums;
+      font-size:.82em; min-width:40px; text-align:center;
+    }
+    input[type=range]#seek {
+      -webkit-appearance:none; appearance:none;
+      flex:1; height:6px; border-radius:3px; background:#333; outline:none;
+      cursor:pointer;
+    }
+    input[type=range]#seek::-webkit-slider-thumb {
+      -webkit-appearance:none; appearance:none;
+      width:16px; height:16px; border-radius:50%;
+      background: var(--green); border:2px solid var(--bg);
+      box-shadow: 0 0 0 1px var(--green);
+    }
+    input[type=range]#seek::-moz-range-thumb {
+      width:16px; height:16px; border-radius:50%;
+      background: var(--green); border:2px solid var(--bg);
+    }
+
+    .controls-row {
+      display:flex; gap:8px; justify-content:center; flex-wrap:wrap;
+    }
+    .controls-row button { min-width:52px; }
+    #btn-playpause { min-width: 96px; }
+
+    .note {
+      margin-top:20px; color:var(--muted); font-size:.8em;
+      padding-top:14px; border-top:1px solid var(--line);
+    }
+    .note b { color:#ddd; }
+
+    #karaoke-btn { background: var(--purple); color:#fff; }
+    #karaoke-btn:hover { background:#a86ac4; }
+
+    #karaoke-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a12 100%);
+      color: #fff;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      padding: 40px;
+      text-align: center;
+      overflow: hidden;
+    }
+    #karaoke-overlay.active { display: flex; }
+
+    #karaoke-now {
+      font-size: 2.6em;
+      font-weight: 800;
+      color: var(--green);
+      margin-top: 20px;
+      margin-bottom: 6px;
+      text-shadow: 0 4px 20px rgba(29,185,84,0.3);
+      max-width: 90vw;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #karaoke-artist {
+      font-size: 1.3em;
+      color: var(--muted);
+      margin-bottom: 20px;
+      font-weight: 400;
+    }
+
+    #karaoke-lyrics {
+      position: relative;
+      width: 90vw;
+      max-width: 1100px;
+      height: 48vh;
+      overflow: hidden;
+      mask-image: linear-gradient(to bottom, transparent 0%, black 18%, black 82%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 18%, black 82%, transparent 100%);
+    }
+    #karaoke-lyrics-track {
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      align-items: center;
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      will-change: transform;
+      transition: transform 0.12s linear;
+    }
+    .kline {
+      font-size: 1.7em;
+      color: #555;
+      line-height: 1.3;
+      transform: scale(0.9);
+      opacity: 0.35;
+      max-width: 90vw;
+      white-space: pre-wrap;
+      transition:
+        color        0.45s ease,
+        opacity      0.45s ease,
+        transform    0.45s cubic-bezier(0.34, 1.56, 0.64, 1),
+        font-weight  0.3s ease,
+        text-shadow  0.45s ease;
+    }
+    .kline.past   { opacity: 0.18; transform: scale(0.85); }
+    .kline.active {
+      color: #fff;
+      opacity: 1;
+      transform: scale(1.10);
+      font-weight: 800;
+      text-shadow: 0 0 30px rgba(29,185,84,0.55);
+      animation: kline-wave 2.4s ease-in-out infinite;
+    }
+    @keyframes kline-wave {
+      0%, 100% { transform: scale(1.10) translateY(0); }
+      50%      { transform: scale(1.10) translateY(-4px); }
+    }
+    #karaoke-no-lyrics {
+      color: #666; font-size: 1.4em; font-style: italic; padding: 40px 0;
+    }
+
+    #karaoke-suggest {
+      display: none;
+      position: fixed;
+      left: 24px;
+      right: 24px;
+      bottom: 56px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px 24px;
+      gap: 24px;
+      background: rgba(30, 30, 40, 0.78);
+      border: 1px solid rgba(29, 185, 84, 0.25);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      text-align: left;
+      color: #ddd;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #karaoke-overlay.active #karaoke-suggest { display: flex; }
+    .suggest-left { flex: 1; min-width: 0; }
+    .suggest-left h2 { color: var(--green); font-size: 1.05em; margin: 0 0 8px 0; }
+    .suggest-left ol { margin: 0; padding-left: 20px; line-height: 1.45; font-size: 0.92em; }
+    .suggest-left li { color: #ccc; }
+    .suggest-left b { color: #fff; }
+    #suggest-link {
+      color: var(--green);
+      word-break: break-all;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.88em;
+    }
+    .code-pill {
+      display: inline-block;
+      background: var(--green);
+      color: #000;
+      padding: 1px 8px;
+      border-radius: 6px;
+      font-weight: 800;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      letter-spacing: 1px;
+      font-size: 0.98em;
+    }
+    .suggest-or {
+      margin: 8px 0 3px 0; color: #555; font-size: 0.72em;
+      text-transform: uppercase; letter-spacing: 2px;
+    }
+    .suggest-scan { margin: 0; color: #aaa; font-size: 0.88em; }
+    .suggest-right {
+      flex-shrink: 0; display: flex; flex-direction: column;
+      align-items: center; gap: 4px;
+    }
+    #qr-wrap {
+      padding: 8px; background: #fff; border-radius: 10px;
+      line-height: 0; box-shadow: 0 6px 24px rgba(29,185,84,0.25);
+    }
+    #qr-img {
+      display: block; width: 140px; height: 140px;
+      image-rendering: pixelated; image-rendering: crisp-edges;
+    }
+    .qr-caption { color: #666; font-size: 0.72em; }
+    @media (max-width: 900px) {
+      #karaoke-suggest { display: none !important; }
+    }
+    @media (max-height: 800px) {
+      #karaoke-lyrics { height: 44vh; }
+      #qr-img { width: 110px; height: 110px; }
+      .suggest-left ol { font-size: 0.85em; }
+    }
+
+    #karaoke-progress {
+      position: fixed; bottom: 0; left: 0; height: 6px;
+      background: var(--green); width: 0%;
+      transition: width 0.25s linear;
+      box-shadow: 0 0 12px var(--green);
+    }
+    #karaoke-close {
+      position: fixed; top: 20px; right: 20px;
+      background: rgba(255,255,255,0.08); color: #fff;
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 10px 16px; font-size: 1em; border-radius: 8px;
+      cursor: pointer;
+    }
+    #karaoke-close:hover { background: rgba(255,255,255,0.16); }
+    #karaoke-hint {
+      position: fixed; bottom: 8px; right: 24px;
+      color: #444; font-size: 0.75em;
+    }
+  </style>
+
+  <script>
+    window._spotifySDKReady = false;
+    window._pendingStartPlayer = null;
+    window.onSpotifyWebPlaybackSDKReady = () => {
+      window._spotifySDKReady = true;
+      if (typeof window._pendingStartPlayer === 'function') {
+        const fn = window._pendingStartPlayer;
+        window._pendingStartPlayer = null;
+        try { fn(); } catch (e) { console.error('Deferred startPlayer failed', e); }
+      }
+    };
+  </script>
+  <script src="https://sdk.scdn.co/spotify-player.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+  <h1>Admin – Room {{ code }}</h1>
+  <p class="sub">Share this code with guests: <b>{{ code }}</b></p>
+
+  <div class="toolbar">
+    <a id="login-btn" href="/login?role=admin&room={{ code }}" style="text-decoration:none;">
+      <button class="primary">Log in with Spotify</button>
+    </a>
+    <button id="karaoke-btn" onclick="toggleKaraoke()" title="Toggle karaoke display">
+      🎤 Karaoke mode
+    </button>
+    <div class="spacer"></div>
+    <button class="danger" onclick="shutdown()">Shut down room</button>
+  </div>
+
+  <div class="status-bar">
+    <span id="status-pill" class="pill">
+      <span class="dot"></span>
+      <span id="status">Player: not ready</span>
+    </span>
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <h2>Up next</h2>
+      <p class="hint">Songs leave the queue the moment they start playing. Use ↑/↓ to reorder, ✕ to remove. Highest score plays first; reorder rewrites scores.</p>
+      <div id="queue"><div class="empty">Loading…</div></div>
+    </div>
+
+    <div class="panel">
+      <h2>Now playing</h2>
+      <div id="now-playing">Nothing playing yet.</div>
+
+      <div id="controls">
+        <div class="seek-row">
+          <span id="time-current" class="time">0:00</span>
+          <input id="seek" type="range" min="0" max="1000" value="0">
+          <span id="time-total" class="time">0:00</span>
+        </div>
+
+        <div class="controls-row">
+          <button class="ghost" id="btn-prev" title="Restart current track">⏮</button>
+          <button class="ghost" id="btn-rewind" title="Rewind 15s">⏪ 15s</button>
+          <button class="primary" id="btn-playpause">⏸ Pause</button>
+          <button class="ghost" id="btn-forward" title="Skip ahead 15s">15s ⏩</button>
+          <button class="ghost" id="btn-next" title="Skip to next queued song">⏭</button>
+        </div>
+      </div>
+
+      <p class="note">
+        Audio plays in <b>this browser</b>. Keep this tab open and connected to your speakers.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const PUBLIC_LINK = 'https://7373-128-193-154-221.ngrok-free.app';
+    const CODE = "{{ code }}";
+    let player, deviceId, accessToken;
+    let currentSong = null;          // the song currently playing (already removed from server queue)
+    let currentMeta = null;          // { startedAt, progressed, nearEnd } for currentSong
+    let isPaused = true;
+    let progressTimer = null;
+    let autoPlayTimer = null;
+    let skipping = false;
+    let playLock = false;            // prevents overlapping playNextFromQueue calls
+    let nextTryAt = 0;               // backoff after a failed play attempt
+    let lastKnown = { position: 0, duration: 0, at: 0 };
+
+    // IDs of every song we have started or finished. These must NEVER be played
+    // again and are re-removed from the server any time they show up in the queue.
+    const consumedIds = new Set();
+    const sweepingIds = new Set();
+
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    // ---------- status pill helpers ----------
+    function setStatus(text, kind) {
+      const el = document.getElementById('status');
+      const pill = document.getElementById('status-pill');
+      if (el) el.innerText = text;
+      if (pill) {
+        pill.classList.remove('ready', 'error');
+        if (kind === 'ready') pill.classList.add('ready');
+        else if (kind === 'error') pill.classList.add('error');
+      }
+    }
+    window.setStatus = setStatus;
+
+    // ---------- server queue helpers (remove + verify) ----------
+    async function removeFromServer(id) {
+      try {
+        const r = await fetch(`/api/${CODE}/admin/remove`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        });
+        return r.ok;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // Returns true / false, or null if the check itself failed.
+    async function queueHasId(id) {
+      try {
+        const r = await fetch(`/api/${CODE}/queue`, { cache: 'no-store' });
+        if (!r.ok) return null;
+        const q = (await r.json()).queue || [];
+        return q.some(s => String(s.id) === String(id));
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Remove, then VERIFY it is gone; retry with backoff. Always marks as consumed
+    // first so the client-side filter hides it even if the server keeps failing.
+    async function ensureRemoved(id, tries = 4) {
+      if (id === null || id === undefined) return false;
+      consumedIds.add(String(id));
+      for (let i = 0; i < tries; i++) {
+        await removeFromServer(id);
+        const has = await queueHasId(id);
+        if (has === false) return true;       // verified gone
+        await sleep(300 * (i + 1));
+      }
+      console.warn('[queue] could not verify removal of', id, '(client filter + sweeper will keep retrying)');
+      return false;
+    }
+
+    // ---------- auth / player boot ----------
+    async function fetchRoomToken() {
+      const r = await fetch(`/api/${CODE}/token`);
+      if (!r.ok) return null;
+      return (await r.json()).access_token;
+    }
+
+    async function pollAuth() {
+      const r = await fetch(`/api/${CODE}/status`);
+      if (!r.ok) return;
+      const { logged_in } = await r.json();
+      if (logged_in) {
+        document.getElementById('login-btn').style.display = 'none';
+        if (!player) startPlayer();
+      }
+    }
+
+    async function startPlayer() {
+      accessToken = await fetchRoomToken();
+      if (!accessToken) return;
+
+      if (typeof Spotify === 'undefined' || !Spotify.Player) {
+        if (window._spotifySDKReady) {
+          setStatus('SDK failed to load. Refresh the page.', 'error');
+        } else {
+          setStatus('Player: waiting for SDK…');
+          window._pendingStartPlayer = () => startPlayer();
+        }
+        return;
+      }
+
+      setStatus('Player: initializing…');
+
+      player = new Spotify.Player({
+        name: 'Jukebox Admin',
+        getOAuthToken: async cb => {
+          const fresh = await fetchRoomToken();
+          if (fresh) accessToken = fresh;
+          cb(accessToken);
+        },
+        volume: 0.6,
+      });
+
+      player.addListener('ready', ({ device_id }) => {
+        deviceId = device_id;
+        setStatus('Player: ready', 'ready');
+        wireControls();
+        startAutoPlayLoop();
+      });
+      player.addListener('not_ready', ({ device_id }) => {
+        setStatus('Player: offline (device ' + device_id + ')', 'error');
+      });
+      player.addListener('account_error', () => {
+        setStatus('Player: Spotify Premium required.', 'error');
+      });
+      player.addListener('playback_error', ({ message }) => {
+        setStatus('Player: error: ' + message, 'error');
+      });
+
+      player.addListener('player_state_changed', state => {
+        if (!state) return;
+        const t = state.track_window?.current_track;
+        if (t) {
+          document.getElementById('now-playing').innerHTML =
+            `${escapeHtml(t.name)}<span class="artist">${escapeHtml(t.artists.map(a => a.name).join(', '))}</span>`;
+          document.getElementById('controls').classList.add('on');
+        }
+
+        isPaused = state.paused;
+        document.getElementById('btn-playpause').innerText = isPaused ? '▶ Play' : '⏸ Pause';
+        updateProgress(state.position, state.duration);
+
+        // ---- Karaoke keyed to the REAL SDK track, not currentSong ----
+        if (karaokeActive && t && t.uri) {
+          onKaraokeTrack(t.uri, t.name, t.artists.map(a => a.name).join(', '));
+        } else if (karaokeActive && !t) {
+          clearKaraokeTrack();
+        }
+      });
+
+      player.connect();
+    }
+
+    const authPoll = setInterval(async () => {
+      await pollAuth();
+      if (player) clearInterval(authPoll);
+    }, 2000);
+
+    pollAuth();
+
+    // ---------- karaoke track change helper ----------
+    function onKaraokeTrack(uri, name, artist) {
+      if (!karaokeActive) return;
+      document.getElementById('karaoke-now').innerText = name || '—';
+      document.getElementById('karaoke-artist').innerText = artist || '';
+
+      if (karaokeTrackKey === uri) return;
+      if (karaokePendingUri === uri) return;
+
+      karaokeLines = [];
+      karaokeActiveIdx = -1;
+      karaokeLineEls = [];
+      karaokeActiveEl = null;
+      const trackEl = document.getElementById('karaoke-lyrics-track');
+      trackEl.innerHTML = '<div id="karaoke-no-lyrics">🎵 Loading lyrics…</div>';
+
+      loadLyricsForUri(uri, name, artist);
+    }
+
+    function clearKaraokeTrack() {
+      karaokeTrackKey = null;
+      karaokePendingUri = null;
+      karaokeLines = [];
+      karaokeActiveIdx = -1;
+      karaokeLineEls = [];
+      karaokeActiveEl = null;
+      document.getElementById('karaoke-now').innerText = 'Nothing playing';
+      document.getElementById('karaoke-artist').innerText = '';
+      document.getElementById('karaoke-lyrics-track').innerHTML =
+        '<div id="karaoke-no-lyrics">Lyrics will appear here.</div>';
+    }
+
+    // ---------- skip (manual ⏭ AND natural end-of-track) ----------
+    // The song was already removed when it STARTED. Here we remove it AGAIN
+    // (verified) as a safety net, then advance to the next song.
+    async function skipToNext() {
+      if (!player || !deviceId || skipping) return;
+      skipping = true;
+
+      try {
+        const finished = currentSong;
+
+        // 1) Clear local state first so the autoplay loop can't re-trigger
+        currentSong = null;
+        currentMeta = null;
+        lastKnown = { position: 0, duration: 0, at: performance.now() };
+
+        // 2) Safety-net removal of the finished song (verified, with retries)
+        if (finished && finished.id != null) {
+          await ensureRemoved(finished.id);
+        }
+
+        // 3) Play the new top of the queue (which also removes it on start)
+        const started = await playNextFromQueue({ forceTransfer: true });
+
+        // 4) Nothing left to play: stop the old track from lingering
+        if (!started) {
+          try { await player.pause(); } catch (e) {}
+        }
+
+        refreshQueue();
+      } finally {
+        setTimeout(() => { skipping = false; }, 1200);
+      }
+    }
+
+    // ---------- play top of queue ----------
+    async function playNextFromQueue({ forceTransfer = false } = {}) {
+      if (!player || !deviceId) return false;
+      if (playLock) return false;
+      playLock = true;
+
+      try {
+        let queue;
+        try {
+          const r = await fetch(`/api/${CODE}/queue`, { cache: 'no-store' });
+          if (!r.ok) return false;
+          queue = (await r.json()).queue || [];
+        } catch (e) {
+          return false;
+        }
+
+        // Anything we've already played/consumed must never play again.
+        const stale = queue.filter(s => consumedIds.has(String(s.id)));
+        stale.forEach(s => sweepStale(s.id));
+        queue = queue.filter(s => !consumedIds.has(String(s.id)));
+
+        if (!queue.length) {
+          currentSong = null;
+          currentMeta = null;
+          document.getElementById('now-playing').innerText = 'Queue is empty.';
+          document.getElementById('controls').classList.remove('on');
+          refreshQueue();
+          return false;
+        }
+
+        const top = queue[0];
+
+        if (forceTransfer) {
+          try {
+            await fetch('https://api.spotify.com/v1/me/player', {
+              method: 'PUT',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ device_ids: [deviceId], play: false }),
+            });
+          } catch (e) { /* non-fatal */ }
+        }
+
+        const playUrl = `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`;
+        const playBody = JSON.stringify({ uris: [top.uri] });
+        const playHeaders = {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        };
+
+        let started = false;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const resp = await fetch(playUrl, {
+              method: 'PUT',
+              headers: playHeaders,
+              body: playBody,
+            });
+            if (resp.ok) { started = true; break; }
+
+            if (resp.status === 404 || resp.status === 403) {
+              const txt = await resp.text().catch(() => '');
+              console.error('play failed', resp.status, txt);
+              setStatus(
+                resp.status === 403
+                  ? 'Playback error: Spotify Premium required.'
+                  : 'Playback error: device not found. Refresh and re-login.',
+                'error'
+              );
+              break;
+            }
+            await sleep(500);
+          } catch (e) {
+            await sleep(500);
+          }
+        }
+
+        if (!started) {
+          console.warn('playNextFromQueue: could not start track', top.uri);
+          nextTryAt = performance.now() + 5000;   // back off before retrying
+          return false;
+        }
+
+        // ---- Track is playing. Record it, then REMOVE IT FROM THE QUEUE NOW. ----
+        currentSong = top;
+        currentMeta = { startedAt: performance.now(), progressed: false, nearEnd: false };
+        lastKnown = { position: 0, duration: 0, at: performance.now() };
+        consumedIds.add(String(top.id));
+        refreshQueue();                           // hide immediately (client filter)
+
+        await ensureRemoved(top.id);              // verified removal on server
+        refreshQueue();
+        return true;
+      } finally {
+        playLock = false;
+      }
+    }
+
+    // Fire-and-forget re-removal for a stale queue entry (deduped)
+    async function sweepStale(id) {
+      const key = String(id);
+      if (sweepingIds.has(key)) return;
+      sweepingIds.add(key);
+      try { await ensureRemoved(id, 3); }
+      finally { setTimeout(() => sweepingIds.delete(key), 3000); }
+    }
+
+    // ---------- autoplay loop ----------
+    function startAutoPlayLoop() {
+      if (autoPlayTimer) clearInterval(autoPlayTimer);
+
+      autoPlayTimer = setInterval(async () => {
+        if (!player || !deviceId || skipping || playLock) return;
+
+        let state;
+        try { state = await player.getCurrentState(); } catch { return; }
+
+        // ===== A song is "current": check whether it's over =====
+        if (currentSong && currentMeta) {
+          if (!state) return;
+
+          const { position, duration, paused, track_window } = state;
+          const cur = track_window?.current_track;
+          const elapsed = performance.now() - currentMeta.startedAt;
+
+          // Track progress flags
+          if (!paused && position > 1000) currentMeta.progressed = true;
+          if (duration > 0 && position >= duration - 4000) currentMeta.nearEnd = true;
+
+          // Signal 1: within 1.5s of the end
+          const atEnd = duration > 0 && position >= duration - 1500 && elapsed > 3000;
+
+          // Signal 2: Spotify parked at 0 paused after the song ran to its end
+          const endedParked =
+            currentMeta.progressed && currentMeta.nearEnd &&
+            paused && position === 0 &&
+            (!cur || cur.uri === currentSong.uri);
+
+          // Signal 3: player went empty after we started
+          const idle = !cur && position === 0 && elapsed > 4000;
+
+          // Signal 4: SDK moved to a different track than the one we started
+          const switched = cur && cur.uri !== currentSong.uri && elapsed > 4000;
+
+          // Signal 5: wall-clock fallback (SDK position can freeze)
+          let wallClockOver = false;
+          if (duration > 0 && !paused) {
+            const sinceSample = performance.now() - (lastKnown.at || performance.now());
+            const estimated = (lastKnown.position || 0) + sinceSample;
+            if (estimated >= duration + 2000) wallClockOver = true;
+          }
+
+          if (atEnd || endedParked || idle || switched || wallClockOver) {
+            console.log('[autoplay] end-of-track', { atEnd, endedParked, idle, switched, wallClockOver });
+            skipToNext();
+          }
+          return;
+        }
+
+        // ===== Nothing current: start the queue if the player isn't actively playing =====
+        if (performance.now() < nextTryAt) return;
+
+        const notPlaying = !state ||
+          state.paused ||
+          !state.track_window?.current_track;
+
+        if (notPlaying) {
+          await playNextFromQueue({ forceTransfer: !state });
+        }
+      }, 1000);
+    }
+
+    // ---------- queue rendering ----------
+    let currentQueue = [];
+
+    async function refreshQueue() {
+      let data;
+      try {
+        const r = await fetch(`/api/${CODE}/queue`, { cache: 'no-store' });
+        if (!r.ok) return;
+        data = await r.json();
+      } catch (e) { return; }
+
+      const raw = data.queue || [];
+
+      // Sweeper: if the server still lists a song we've already played, remove it again.
+      raw.forEach(s => {
+        if (consumedIds.has(String(s.id))) sweepStale(s.id);
+      });
+
+      // Client-side filter: consumed songs are never shown or played.
+      currentQueue = raw.filter(s => !consumedIds.has(String(s.id)));
+
+      const box = document.getElementById('queue');
+      if (!currentQueue.length) {
+        box.innerHTML = '<div class="empty">Queue is empty.</div>';
+        return;
+      }
+      box.innerHTML = currentQueue.map((s, i) => `
+        <div class="song">
+          <div class="rank">${i + 1}</div>
+          <div class="song-info">
+            <div class="song-name">${escapeHtml(s.name)}</div>
+            <div class="song-meta">${escapeHtml(s.artist || '')} • ${escapeHtml(s.requester)}</div>
+          </div>
+          <div class="score">${s.score}</div>
+          <div class="row-btns">
+            <button class="ghost" onclick="move(${i},-1)" ${i===0?'disabled':''} title="Move up">↑</button>
+            <button class="ghost" onclick="move(${i},1)" ${i===currentQueue.length-1?'disabled':''} title="Move down">↓</button>
+            <button class="danger" onclick="removeSong(${s.id})" title="Remove">✕</button>
+          </div>
+        </div>`).join('');
+    }
+
+    async function move(index, dir) {
+      const newIndex = index + dir;
+      if (newIndex < 0 || newIndex >= currentQueue.length) return;
+      const ids = currentQueue.map(s => s.id);
+      [ids[index], ids[newIndex]] = [ids[newIndex], ids[index]];
+      await fetch(`/api/${CODE}/admin/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      refreshQueue();
+    }
+
+    async function removeSong(id) {
+      await removeFromServer(id);
+      refreshQueue();
+    }
+
+    async function shutdown() {
+      if (!confirm('Shut down this room? Guests will be kicked out.')) return;
+      await fetch(`/api/${CODE}/admin/shutdown`, { method: 'POST' });
+      alert('Room shut down.');
+      window.location.href = '/';
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
+    // ---------- progress ----------
+    let rafId = null;
+    let lastPlayerPoll = 0;
+
+    function startProgressTimer() {
+      if (progressTimer) clearInterval(progressTimer);
+
+      progressTimer = setInterval(async () => {
+        if (!player || isPaused) return;
+        const state = await player.getCurrentState();
+        if (!state) return;
+        lastKnown = {
+          position: state.position,
+          duration: state.duration,
+          at: performance.now(),
+        };
+        updateProgress(state.position, state.duration);
+      }, 1000);
+
+      const tick = () => {
+        rafId = requestAnimationFrame(tick);
+        if (!karaokeActive) return;
+
+        if (!isPaused && lastKnown.duration) {
+          const elapsed = performance.now() - lastKnown.at;
+          const estimated = Math.min(lastKnown.position + elapsed, lastKnown.duration);
+          updateKaraoke(estimated, lastKnown.duration);
+        } else {
+          updateKaraoke(lastKnown.position, lastKnown.duration);
+        }
+
+        const now = performance.now();
+        if (player && !isPaused && now - lastPlayerPoll > 250) {
+          lastPlayerPoll = now;
+          player.getCurrentState().then(state => {
+            if (!state) return;
+            lastKnown = {
+              position: state.position,
+              duration: state.duration,
+              at: performance.now(),
+            };
+          }).catch(() => {});
+        }
+      };
+      if (!rafId) rafId = requestAnimationFrame(tick);
+    }
+
+    function updateProgress(positionMs, durationMs) {
+      const seek = document.getElementById('seek');
+      const cur = document.getElementById('time-current');
+      const tot = document.getElementById('time-total');
+      if (durationMs) {
+        if (!seek.dataset.dragging) {
+          seek.value = Math.round((positionMs / durationMs) * 1000);
+        }
+        cur.innerText = fmt(positionMs);
+        tot.innerText = fmt(durationMs);
+        seek.dataset.duration = durationMs;
+      }
+      updateKaraoke(positionMs, durationMs);
+    }
+
+    function fmt(ms) {
+      const s = Math.floor(ms / 1000);
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return `${m}:${String(r).padStart(2, '0')}`;
+    }
+
+    function wireControls() {
+      const btnPP     = document.getElementById('btn-playpause');
+      const btnNext   = document.getElementById('btn-next');
+      const btnPrev   = document.getElementById('btn-prev');
+      const btnRewind = document.getElementById('btn-rewind');
+      const btnFwd    = document.getElementById('btn-forward');
+      const seek      = document.getElementById('seek');
+
+      btnPP.onclick = async () => {
+        if (!player) return;
+        if (isPaused) await player.resume();
+        else await player.pause();
+      };
+      btnPrev.onclick = async () => { if (player) await player.seek(0); };
+      btnNext.onclick = skipToNext;
+
+      btnRewind.onclick = async () => {
+        if (!player) return;
+        const state = await player.getCurrentState();
+        if (!state) return;
+        const target = Math.max(0, state.position - 15000);
+        await player.seek(target);
+        updateProgress(target, state.duration);
+      };
+      btnFwd.onclick = async () => {
+        if (!player) return;
+        const state = await player.getCurrentState();
+        if (!state) return;
+        const target = Math.min(state.duration, state.position + 15000);
+        await player.seek(target);
+        updateProgress(target, state.duration);
+      };
+
+      seek.addEventListener('input', () => {
+        seek.dataset.dragging = '1';
+        const dur = Number(seek.dataset.duration || 0);
+        document.getElementById('time-current').innerText =
+          fmt((Number(seek.value) / 1000) * dur);
+      });
+      seek.addEventListener('change', async () => {
+        const dur = Number(seek.dataset.duration || 0);
+        const target = Math.round((Number(seek.value) / 1000) * dur);
+        seek.dataset.dragging = '';
+        if (player) {
+          await player.seek(target);
+          const state = await player.getCurrentState();
+          if (state) updateProgress(state.position, state.duration);
+        }
+      });
+
+      startProgressTimer();
+    }
+
+    // ---------- karaoke ----------
+    let karaokeActive = false;
+    let karaokeLines = [];
+    let karaokeActiveIdx = -1;
+    let karaokeTrackKey = null;
+    let karaokePendingUri = null;
+    let karaokeLyricsFetchAbort = null;
+    let karaokeLineEls = [];
+    let karaokeActiveEl = null;
+
+    function toggleKaraoke() {
+      if (karaokeActive) exitKaraoke();
+      else enterKaraoke();
+    }
+
+    function enterKaraoke() {
+      karaokeActive = true;
+      const ov = document.getElementById('karaoke-overlay');
+      ov.classList.add('active');
+      if (ov.requestFullscreen) ov.requestFullscreen().catch(() => {});
+
+      if (player) {
+        player.getCurrentState().then(state => {
+          if (!state || !karaokeActive) return;
+          const t = state.track_window?.current_track;
+          if (t && t.uri) {
+            onKaraokeTrack(t.uri, t.name, t.artists.map(a => a.name).join(', '));
+          }
+          if (state.duration) {
+            updateKaraoke(state.position, state.duration);
+          }
+        }).catch(() => {});
+      }
+
+      if (lastKnown.duration) {
+        updateKaraoke(lastKnown.position, lastKnown.duration);
+      }
+    }
+
+    function exitKaraoke() {
+      karaokeActive = false;
+      document.getElementById('karaoke-overlay').classList.remove('active');
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      if (karaokeLyricsFetchAbort) {
+        karaokeLyricsFetchAbort.abort();
+        karaokeLyricsFetchAbort = null;
+      }
+      karaokePendingUri = null;
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && karaokeActive) exitKaraoke();
+    });
+
+    // Fetch lyrics for a specific track URI (doesn't depend on currentSong)
+    async function loadLyricsForUri(uri, title, artist) {
+      if (!uri) return;
+      if (karaokeTrackKey === uri) return;
+      if (karaokePendingUri === uri) return;
+
+      if (karaokeLyricsFetchAbort) karaokeLyricsFetchAbort.abort();
+      karaokeLyricsFetchAbort = new AbortController();
+      const outerAbort = karaokeLyricsFetchAbort;
+      karaokePendingUri = uri;
+
+      const track = document.getElementById('karaoke-lyrics-track');
+      if (!track) return;
+
+      const shortArtist = (artist || '').split(',')[0].trim();
+
+      const fetchWithTimeout = (url, ms = 8000) => {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), ms);
+        const onOuterAbort = () => ctrl.abort();
+        outerAbort.signal.addEventListener('abort', onOuterAbort, { once: true });
+        return fetch(url, { signal: ctrl.signal }).finally(() => {
+          clearTimeout(t);
+          outerAbort.signal.removeEventListener('abort', onOuterAbort);
+        });
+      };
+
+      let lrcText = null;
+      let plainText = null;
+
+      try {
+        const r = await fetchWithTimeout(
+          `https://lrclib.net/api/get?artist_name=${encodeURIComponent(shortArtist)}&track_name=${encodeURIComponent(title)}`
+        );
+        if (r.ok) {
+          const data = await r.json();
+          if (data.syncedLyrics) lrcText = data.syncedLyrics;
+          else if (data.plainLyrics) plainText = data.plainLyrics;
+        }
+      } catch (e) {
+        if (outerAbort.signal.aborted) { karaokePendingUri = null; return; }
+        console.warn('[LYRICS] get failed:', e);
+      }
+
+      if (!lrcText && !plainText) {
+        try {
+          const r = await fetchWithTimeout(
+            `https://lrclib.net/api/search?track_name=${encodeURIComponent(title)}&artist_name=${encodeURIComponent(shortArtist)}`
+          );
+          if (r.ok) {
+            const results = await r.json();
+            if (Array.isArray(results) && results.length) {
+              const synced = results.find(x => x.syncedLyrics);
+              if (synced) lrcText = synced.syncedLyrics;
+              else if (results[0].plainLyrics) plainText = results[0].plainLyrics;
+            }
+          }
+        } catch (e) {
+          if (outerAbort.signal.aborted) { karaokePendingUri = null; return; }
+          console.warn('[LYRICS] search failed:', e);
+        }
+      }
+
+      if (outerAbort.signal.aborted) { karaokePendingUri = null; return; }
+      karaokePendingUri = null;
+
+      const currentUri = karaokeTrackKey;
+      if (currentUri && currentUri !== uri) return;
+
+      karaokeTrackKey = uri;
+
+      if (lrcText) {
+        karaokeLines = parseLRC(lrcText);
+        if (!karaokeLines.length) {
+          track.innerHTML = '<div id="karaoke-no-lyrics">No synced lyrics found — sing along!</div>';
+          return;
+        }
+        renderLyrics();
+      } else if (plainText) {
+        track.innerHTML = plainText.split('\n')
+          .map(line => `<div class="kline">${escapeHtml(line) || '&nbsp;'}</div>`).join('');
+        document.querySelectorAll('#karaoke-lyrics-track .kline').forEach(el => {
+          el.style.opacity = '0.8';
+          el.style.transform = 'scale(1)';
+        });
+      } else {
+        track.innerHTML =
+          '<div id="karaoke-no-lyrics">No lyrics found for this track.<br>' +
+          '<span style="font-size:0.7em; color:#444;">(LRCLIB has no match)</span></div>';
+      }
+    }
+
+    function parseLRC(text) {
+      const lines = [];
+      const re = /\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
+      for (const raw of text.split(/\r?\n/)) {
+        let match;
+        let lastIdx = 0;
+        const timestamps = [];
+        re.lastIndex = 0;
+        while ((match = re.exec(raw)) !== null) {
+          const min  = parseInt(match[1], 10);
+          const sec  = parseInt(match[2], 10);
+          const frac = match[3] ? parseInt(match[3].padEnd(3, '0'), 10) : 0;
+          timestamps.push(min * 60000 + sec * 1000 + frac);
+          lastIdx = re.lastIndex;
+        }
+        if (!timestamps.length) continue;
+        const lyric = raw.slice(lastIdx).trim();
+        if (!lyric) continue;
+        for (const t of timestamps) lines.push({ timeMs: t, text: lyric });
+      }
+      lines.sort((a, b) => a.timeMs - b.timeMs);
+      return lines;
+    }
+
+    function renderLyrics() {
+      const track = document.getElementById('karaoke-lyrics-track');
+      if (!track) return;
+      const padTop = 3, padBottom = 6;
+      let html = '';
+      for (let i = 0; i < padTop; i++) {
+        html += `<div class="kline" style="opacity:0; pointer-events:none;">&nbsp;</div>`;
+      }
+      karaokeLines.forEach((ln, i) => {
+        html += `<div class="kline" data-idx="${i}">${escapeHtml(ln.text) || '&nbsp;'}</div>`;
+      });
+      for (let i = 0; i < padBottom; i++) {
+        html += `<div class="kline" style="opacity:0; pointer-events:none;">&nbsp;</div>`;
+      }
+      track.innerHTML = html;
+      karaokeLineEls = Array.from(track.querySelectorAll('.kline[data-idx]'));
+      karaokeActiveEl = null;
+      karaokeActiveIdx = -1;
+      void track.offsetHeight;
+      applyKaraokeState(0, 0, 0, true);
+    }
+
+    function applyKaraokeState(activeIdx, positionMs, durationMs, force) {
+      if (!karaokeLineEls.length) return;
+      if (force || activeIdx !== karaokeActiveIdx) {
+        if (karaokeActiveEl) karaokeActiveEl.classList.remove('active');
+        karaokeLineEls.forEach((el, i) => el.classList.toggle('past', i < activeIdx));
+        karaokeActiveEl = karaokeLineEls[activeIdx] || null;
+        if (karaokeActiveEl) karaokeActiveEl.classList.add('active');
+        karaokeActiveIdx = activeIdx;
+      }
+      const track = document.getElementById('karaoke-lyrics-track');
+      const container = document.getElementById('karaoke-lyrics');
+      if (!track || !container || !karaokeActiveEl) return;
+      const lineTop = karaokeActiveEl.offsetTop;
+      const lineH   = karaokeActiveEl.offsetHeight || 40;
+      const center  = container.clientHeight * 0.45;
+      let offset = center - (lineTop + lineH / 2);
+      if (durationMs && activeIdx >= 0 && activeIdx < karaokeLines.length) {
+        const startT = karaokeLines[activeIdx].timeMs;
+        const endT = (activeIdx + 1 < karaokeLines.length)
+          ? karaokeLines[activeIdx + 1].timeMs : startT + 3000;
+        const span = Math.max(1, endT - startT);
+        const local = Math.max(0, Math.min(1, (positionMs - startT) / span));
+        offset -= local * 4;
+      }
+      track.style.transform = `translateY(${offset.toFixed(1)}px)`;
+    }
+
+    function updateKaraoke(positionMs, durationMs) {
+      if (!karaokeActive) return;
+      if (durationMs) {
+        document.getElementById('karaoke-progress').style.width =
+          ((positionMs / durationMs) * 100).toFixed(2) + '%';
+      }
+      if (!karaokeLines.length) return;
+      let lo = 0, hi = karaokeLines.length - 1, found = -1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (karaokeLines[mid].timeMs <= positionMs) { found = mid; lo = mid + 1; }
+        else hi = mid - 1;
+      }
+      applyKaraokeState(found, positionMs, durationMs, false);
+    }
+
+    // ---------- suggest panel ----------
+    function buildJoinUrl() {
+      const base = String(PUBLIC_LINK || '').trim().replace(/\/+$/, '');
+      if (!base) return '';
+      return `${base}/${encodeURIComponent(CODE)}`;
+    }
+
+    function renderSuggestPanel() {
+      const joinUrl = buildJoinUrl();
+      const codeEl = document.getElementById('suggest-code');
+      const linkEl = document.getElementById('suggest-link');
+      const img    = document.getElementById('qr-img');
+      const capEl  = document.querySelector('.qr-caption');
+
+      if (codeEl) codeEl.innerText = CODE;
+      if (linkEl) linkEl.innerText = joinUrl || '(set PUBLIC_LINK)';
+      if (!joinUrl) {
+        if (img) img.style.display = 'none';
+        if (capEl) capEl.innerText = '(set PUBLIC_LINK)';
+        return;
+      }
+      if (typeof qrcode === 'undefined') {
+        if (img) img.style.display = 'none';
+        if (capEl) capEl.innerText = '(QR lib failed to load)';
+        return;
+      }
+      try {
+        const qr = qrcode(0, 'M');
+        qr.addData(joinUrl);
+        qr.make();
+        img.src = qr.createDataURL(8, 2);
+        img.style.display = '';
+        if (capEl) capEl.innerText = 'Point your phone camera here';
+      } catch (e) {
+        console.warn('[QR] generation failed', e);
+        if (img) img.style.display = 'none';
+        if (capEl) capEl.innerText = '(QR generation failed)';
+      }
+    }
+
+    // ---------- boot ----------
+    refreshQueue();
+    setInterval(refreshQueue, 5000);
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', renderSuggestPanel);
+    } else {
+      renderSuggestPanel();
+    }
+  </script>
+
+  <div id="karaoke-overlay">
+    <button id="karaoke-close" onclick="exitKaraoke()">✕ Exit karaoke</button>
+    <div id="karaoke-now">Nothing playing</div>
+    <div id="karaoke-artist"></div>
+    <div id="karaoke-lyrics">
+      <div id="karaoke-lyrics-track">
+        <div id="karaoke-no-lyrics">Lyrics will appear here.</div>
+      </div>
+    </div>
+    <div id="karaoke-suggest" aria-label="How to request songs">
+      <div class="suggest-left">
+        <h2>🎵 Want to hear a song?</h2>
+        <ol>
+          <li>Go to <b id="suggest-link">—</b></li>
+          <li>Enter the code <span class="code-pill" id="suggest-code">—</span> in the top field</li>
+          <li>Click <b>Enter</b> and start making requests</li>
+        </ol>
+        <p class="suggest-or">— or —</p>
+        <p class="suggest-scan">Scan the QR code and start requesting instantly 👉</p>
+      </div>
+      <div class="suggest-right">
+        <div id="qr-wrap">
+          <img id="qr-img" alt="QR code to join room" width="140" height="140">
+        </div>
+        <div class="qr-caption">Point your phone camera here</div>
+      </div>
+    </div>
+    <div id="karaoke-progress"></div>
+    <div id="karaoke-hint">Press Esc to exit • Synced lyrics by LRCLIB</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Party Jukebox</title>
+  <style>
+    body { font-family: sans-serif; background:#121212; color:#fff;
+           display:flex; flex-direction:column; align-items:center; padding-top:60px; }
+    h1 { color:#1DB954; }
+    .card { background:#1e1e1e; padding:30px; border-radius:14px; width:340px;
+            display:flex; flex-direction:column; gap:14px; margin-bottom:20px; }
+    input { padding:10px; border-radius:8px; border:none; font-size:1em; }
+    button { padding:12px; border:none; border-radius:8px; font-size:1em;
+             cursor:pointer; font-weight:bold; }
+    .primary { background:#1DB954; color:#000; }
+    .secondary { background:#333; color:#fff; }
+    .error { color:#ff6b6b; text-align:center; }
+  </style>
+</head>
+<body>
+  <h1>🎵 Party Jukebox</h1>
+
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+  <form class="card" action="/join" method="POST">
+    <h2>Join a room</h2>
+    <input name="code" placeholder="Enter room code (e.g. A1B2C3)" maxlength="10" required>
+    <button class="primary" type="submit">Enter</button>
+  </form>
+
+  <form class="card" action="/create" method="POST">
+    <h2>Create a room</h2>
+    <p style="color:#aaa; margin:0;">You'll be the admin. You'll need to log in with Spotify Premium so the music can play.</p>
+    <button class="primary" type="submit">Create room</button>
+  </form>
+</body>
+</html>

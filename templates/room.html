@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Room {{ code }}</title>
+  <style>
+    :root{
+      --bg:#0f0f0f; --panel:#1a1a1a; --panel-2:#212121;
+      --line:#2a2a2a; --text:#f2f2f2; --muted:#9a9a9a;
+      --green:#1DB954; --danger:#e0245e;
+      --radius:14px;
+    }
+    *{box-sizing:border-box;}
+    html,body{ -webkit-text-size-adjust:100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text); margin:0;
+      padding: 20px 16px 40px;
+      -webkit-font-smoothing: antialiased;
+      max-width: 1100px; margin-inline:auto;
+      overflow-wrap:break-word;
+    }
+    h1 { color: var(--green); margin:0 0 2px; font-size:1.5em; letter-spacing:-.02em; }
+    .sub { color: var(--muted); margin:0 0 18px; font-size:.85em; }
+    h2 { font-size:1.05em; margin:0 0 12px; color:#e8e8e8; }
+
+    .layout {
+      display:grid; grid-template-columns: 1fr 1fr; gap:18px; align-items:start;
+    }
+    @media (max-width: 760px){
+      .layout { grid-template-columns: 1fr; }
+      /* Put requesting panel first on mobile */
+      .layout .request-panel { order:-1; }
+    }
+    .panel {
+      background: var(--panel); padding:18px;
+      border-radius: var(--radius); border:1px solid var(--line);
+    }
+
+    /* ---------- request panel ---------- */
+    .request-panel { position: relative; }
+    .field { margin-bottom:10px; }
+    label {
+      display:block; font-size:.78em; text-transform:uppercase;
+      letter-spacing:.5px; color:var(--muted); margin-bottom:6px;
+      font-weight:600;
+    }
+    input[type=text] {
+      width:100%; padding: 13px 14px; border-radius:12px;
+      border:1px solid var(--line); background: var(--panel-2);
+      color: var(--text); font-size: 16px; outline:none;
+      font-family:inherit;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    input[type=text]:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(29,185,84,.15);
+    }
+    input[type=text]::placeholder { color:#666; }
+
+    .search-row { display:flex; gap:8px; }
+    .search-row input { flex:1; }
+    .search-row button {
+      padding: 0 18px; border:none; border-radius:12px;
+      background: var(--green); color:#000; font-weight:700;
+      font-size:1em; cursor:pointer;
+      min-height: 48px;
+    }
+    .search-row button:active { transform: scale(.97); }
+
+    /* results */
+    #results { margin-top:14px; max-height: 380px; overflow-y:auto; }
+    @media (max-width: 760px){
+      #results { max-height: none; }
+    }
+    #results:empty { margin-top:0; }
+    .results-hint {
+      color: var(--muted); font-size:.85em; padding: 18px 4px;
+      text-align:center; font-style:italic;
+    }
+    .result-item {
+      display:flex; align-items:center; gap:10px;
+      padding: 11px 12px; border-radius:10px;
+      background: var(--panel-2); margin-bottom:6px;
+      cursor:pointer; border:1px solid transparent;
+      transition: border-color .15s ease, background .15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .result-item:hover { background:#262626; border-color:#333; }
+    .result-item:active { background:#2a2a2a; }
+    .result-item .meta { flex:1; min-width:0; }
+    .result-item .name {
+      font-weight:600; font-size:.94em;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .result-item .artists {
+      color:var(--muted); font-size:.8em; margin-top:2px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .result-item .add {
+      flex-shrink:0; background: transparent; border:1px solid var(--green);
+      color: var(--green); padding: 6px 12px; border-radius: 8px;
+      font-weight:700; font-size:.8em; cursor:pointer;
+    }
+    .result-item .add:active { transform: scale(.96); }
+
+    /* ---------- queue ---------- */
+    #queue { display:flex; flex-direction:column; gap:8px; }
+    .song {
+      display:flex; align-items:center; gap:10px;
+      padding: 11px 12px; background: var(--panel-2);
+      border-radius: 12px; border:1px solid transparent;
+      transition: border-color .15s ease;
+    }
+    .song.playing {
+      border-color: rgba(29,185,84,.5);
+      background: rgba(29,185,84,.08);
+    }
+    .song .rank {
+      min-width: 24px; text-align:center; color:var(--muted);
+      font-weight:700; font-size:.8em; font-variant-numeric:tabular-nums;
+    }
+    .song.playing .rank { color: var(--green); }
+    .song-info { flex:1; min-width:0; }
+    .song-name {
+      font-weight:600; font-size:.93em;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .song-meta {
+      color:var(--muted); font-size:.78em; margin-top:2px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .score {
+      color: var(--green); font-weight:700; min-width:32px;
+      text-align:right; font-variant-numeric:tabular-nums; font-size:.9em;
+    }
+    .votes { display:flex; gap:6px; }
+    .votes button {
+      padding: 9px 12px; border-radius:10px; border:1px solid var(--line);
+      background: transparent; color:#ccc; cursor:pointer;
+      font-size: 1.05em; line-height:1;
+      min-width: 44px; min-height: 44px;
+      display:inline-flex; align-items:center; justify-content:center;
+      transition: background .15s ease, border-color .15s ease, color .15s ease, transform .08s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .votes button:hover { background:#2a2a2a; }
+    .votes button:active { transform: scale(.95); }
+    .votes button.up.active {
+      background: rgba(29,185,84,.2); border-color: var(--green); color: var(--green);
+    }
+    .votes button.down.active {
+      background: rgba(224,36,94,.2); border-color: var(--danger); color:#ff7a9c;
+    }
+
+    .empty {
+      color: var(--muted); text-align:center; padding: 30px 10px;
+      font-size:.9em; font-style:italic;
+    }
+
+    /* toast for errors */
+    #toast {
+      position: fixed; bottom: 20px; left:50%; transform: translateX(-50%) translateY(80px);
+      background: var(--danger); color:#fff; padding: 12px 20px;
+      border-radius: 12px; font-weight:600; font-size:.9em;
+      box-shadow: 0 8px 24px rgba(0,0,0,.5);
+      transition: transform .25s ease, opacity .25s ease; opacity:0;
+      z-index: 100; max-width: 90vw;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity:1; }
+  </style>
+</head>
+<body>
+  <h1>Room {{ code }}</h1>
+  <p class="sub">Search, request, and vote up your favorites.</p>
+
+  <div class="layout">
+    <!-- Request panel -->
+    <div class="panel request-panel">
+      <h2>Request a song</h2>
+
+      <div class="field">
+        <label for="requester">Your name (optional)</label>
+        <input id="requester" type="text" placeholder="e.g. Alex" autocomplete="nickname"
+               maxlength="40" value="">
+      </div>
+
+      <div class="field" style="margin-bottom:0;">
+        <label for="search">Search Spotify</label>
+        <div class="search-row">
+          <input id="search" type="text" placeholder="Song, artist…" autocomplete="off"
+                 inputmode="search" enterkeyhint="search">
+          <button id="search-btn" type="button" aria-label="Search">🔍</button>
+        </div>
+      </div>
+
+      <div id="results"></div>
+    </div>
+
+    <!-- Queue panel -->
+    <div class="panel">
+      <h2>Queue</h2>
+      <div id="queue"><div class="empty">Loading…</div></div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    const CODE = "{{ code }}";
+    let accessToken = null;
+    let searchInFlight = false;
+    let lastQuery = "";
+
+    // Remember the requester's name across visits
+    const RQ_KEY = 'jukebox_requester_' + CODE;
+    (function initRequester(){
+      const input = document.getElementById('requester');
+      const saved = localStorage.getItem(RQ_KEY);
+      if (saved) input.value = saved;
+      input.addEventListener('input', () => {
+        localStorage.setItem(RQ_KEY, input.value.trim());
+      });
+    })();
+
+    function toast(msg){
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => el.classList.remove('show'), 2600);
+    }
+
+    async function getRoomToken() {
+      try {
+        const r = await fetch(`/api/${CODE}/token`);
+        if (!r.ok) return null;
+        return (await r.json()).access_token;
+      } catch { return null; }
+    }
+
+    async function ensureToken(force = false){
+      if (accessToken && !force) return accessToken;
+      accessToken = await getRoomToken();
+      return accessToken;
+    }
+
+    // ---- search ----
+    async function doSearch() {
+      if (searchInFlight) return;
+      const q = document.getElementById('search').value.trim();
+      if (!q) { document.getElementById('results').innerHTML = ''; return; }
+      if (q === lastQuery) return;
+
+      const results = document.getElementById('results');
+      searchInFlight = true;
+      lastQuery = q;
+      results.innerHTML = '<div class="results-hint">Searching…</div>';
+
+      try {
+        let token = await ensureToken();
+        if (!token) {
+          results.innerHTML =
+            '<div class="results-hint" style="color:#ff7a9c;">The host hasn\'t logged in to Spotify yet. Ask them to sign in.</div>';
+          return;
+        }
+
+        const r = await fetch(
+          `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=10`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (r.status === 401) {
+          // Refresh once
+          token = await ensureToken(true);
+          if (token) {
+            return doSearch();
+          }
+        }
+        if (!r.ok) {
+          results.innerHTML = '<div class="results-hint">Search failed. Try again in a moment.</div>';
+          return;
+        }
+
+        const data = await r.json();
+        const items = data.tracks?.items || [];
+        if (!items.length) {
+          results.innerHTML = '<div class="results-hint">No results for that search.</div>';
+          return;
+        }
+
+        results.innerHTML = '';
+        items.forEach(t => {
+          const div = document.createElement('div');
+          div.className = 'result-item';
+          div.innerHTML = `
+            <div class="meta">
+              <div class="name">${escapeHtml(t.name)}</div>
+              <div class="artists">${escapeHtml(t.artists.map(a => a.name).join(', '))}</div>
+            </div>
+            <button class="add" type="button">+ Add</button>
+          `;
+          const addBtn = div.querySelector('.add');
+          const handler = () => requestSong(t, addBtn);
+          div.addEventListener('click', handler);
+          addBtn.addEventListener('click', e => { e.stopPropagation(); handler(); });
+          results.appendChild(div);
+        });
+      } catch (e) {
+        console.error(e);
+        results.innerHTML = '<div class="results-hint">Network error. Try again.</div>';
+      } finally {
+        searchInFlight = false;
+      }
+    }
+
+    document.getElementById('search-btn').addEventListener('click', doSearch);
+
+    // Debounced search-as-you-type
+    let searchDebounce = null;
+    document.getElementById('search').addEventListener('input', e => {
+      const val = e.target.value.trim();
+      clearTimeout(searchDebounce);
+      if (val.length < 2) {
+        document.getElementById('results').innerHTML = '';
+        lastQuery = "";
+        return;
+      }
+      searchDebounce = setTimeout(doSearch, 350);
+    });
+    document.getElementById('search').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+    });
+
+    async function requestSong(track, btn) {
+      const requester = document.getElementById('requester').value.trim();
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Adding…';
+      }
+      try {
+        const r = await fetch(`/api/${CODE}/add`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uri: track.uri,
+            name: track.name,
+            artist: track.artists.map(a => a.name).join(', '),
+            requester: requester || 'Anonymous',
+          }),
+        });
+        if (!r.ok) throw new Error('add failed');
+        if (btn) {
+          btn.textContent = '✓ Added';
+          btn.style.color = 'var(--green)';
+          btn.style.borderColor = 'var(--green)';
+        }
+        document.getElementById('search').value = '';
+        document.getElementById('search').focus();
+        document.getElementById('results').innerHTML = '';
+        lastQuery = "";
+        refreshQueue();
+      } catch (e) {
+        toast('Could not add song. Try again.');
+        if (btn) { btn.disabled = false; btn.textContent = '+ Add'; }
+      }
+    }
+
+    // ---- voting ----
+    async function vote(id, direction, btn) {
+      // optimistic UI
+      if (btn) {
+        btn.classList.toggle('active');
+        btn.disabled = true;
+      }
+      try {
+        await fetch(`/api/${CODE}/vote`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, direction }),
+        });
+        refreshQueue();
+      } catch (e) {
+        toast('Could not register vote.');
+        refreshQueue();
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    // ---- queue render ----
+    async function refreshQueue() {
+      let data;
+      try {
+        const r = await fetch(`/api/${CODE}/queue`);
+        if (!r.ok) {
+          document.getElementById('queue').innerHTML = '<div class="empty">Room not found.</div>';
+          return;
+        }
+        data = await r.json();
+      } catch {
+        return;
+      }
+      const queue = data.queue || [];
+      const box = document.getElementById('queue');
+      if (!queue.length) {
+        box.innerHTML = '<div class="empty">Queue is empty. Be the first to request a song!</div>';
+        return;
+      }
+      box.innerHTML = queue.map((s, i) => {
+        const up   = s.my_vote ===  1;
+        const down = s.my_vote === -1;
+        return `
+          <div class="song">
+            <div class="rank">${i + 1}</div>
+            <div class="song-info">
+              <div class="song-name">${escapeHtml(s.name)}</div>
+              <div class="song-meta">${escapeHtml(s.artist || '')} • ${escapeHtml(s.requester)}</div>
+            </div>
+            <div class="score">${s.score}</div>
+            <div class="votes">
+              <button type="button" class="up ${up ? 'active' : ''}"
+                      onclick="vote(${s.id},'up',this)"
+                      aria-label="${up ? 'Remove upvote' : 'Upvote'}"
+                      aria-pressed="${up}">👍</button>
+              <button type="button" class="down ${down ? 'active' : ''}"
+                      onclick="vote(${s.id},'down',this)"
+                      aria-label="${down ? 'Remove downvote' : 'Downvote'}"
+                      aria-pressed="${down}">👎</button>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
+    refreshQueue();
+    setInterval(refreshQueue, 5000);
+  </script>
+</body>
+</html>
